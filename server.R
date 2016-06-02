@@ -9,14 +9,14 @@ library(GRmetrics)
 source('functions/drawPopup.R')
 source('functions/drawDRC.R', local = T)
 source('functions/extractGridData.R')
-source('functions/drawScatter.R', local = T)
+#source('functions/drawScatter.R', local = T)
 #source('functions/calculate_GR.R')
 #source('functions/logistic_fit_GR.R')
 source('functions/parseLabel.R')
 
 shinyServer(function(input, output,session) {
   
-  values <- reactiveValues(inData=NULL, GR_table = NULL, GR_table_show = NULL, parameter_table = NULL, parameter_table_show = NULL, df_scatter = NULL, showanalyses=0, showdata=0, showanalyses_multi=0, data_dl = NULL)
+  values <- reactiveValues(inData=NULL, GR_table = NULL, GR_table_show = NULL, parameter_table = NULL, parameter_table_show = NULL, tables = NULL, df_scatter = NULL, showanalyses=0, showdata=0, showanalyses_multi=0, data_dl = NULL)
   isolate(values$inData)
 
   observeEvent(input$loadExample, {
@@ -236,19 +236,51 @@ shinyServer(function(input, output,session) {
     }
   })
   
-  # Make scatterplot reactive to "pick_parameter" after first plot.
-  observeEvent(input$pick_parameter, {
-    if(input$plot_scatter > 0) {
-      output$plotlyScatter1 <- renderPlotly({
-        try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
-        plot1 = isolate(drawScatter(input, values))
-      })
-    }
-  })
+  ## Fix so that scatterplot is reactive
+#   observeEvent(input$pick_parameter, {
+#     new_plot_number <<- 0
+#     if(new_plot_number == 0 & plot_number > 0) {
+#       output$plotlyScatter1 <- renderPlotly({
+#         try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
+#         new_plot_number <<- new_plot_number + 1
+#         plot_number <<- plot_number + 1
+#         plot1 = isolate(GRscatter(values$tables, input$pick_parameter, input$pick_var, scatter_vars_x, scatter_vars_y, plotly = F))
+#         plotScatter <<- plot1
+#         plot2 = isolate(ggplotly(plot1))
+#       })
+#     } else {
+#       observeEvent(input$plot_scatter, {
+#         output$plotlyScatter1 <- renderPlotly({
+#           try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
+#           plot_number <<- plot_number + 1
+#           print('number')
+#           print(plot_number)
+#           if(plot_number == 1) {
+#             plot1 = isolate(GRscatter(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F))
+#             plotScatter <<- plot1
+#             scatter_vars_x <<- input$x_scatter
+#             scatter_vars_y <<- input$y_scatter
+#             #print(plotScatter$data)
+#             plot2 = isolate(ggplotly(plot1))
+#           } else {
+#             #plot1 = isolate(drawScatter(input, values))
+#             plot1 = isolate(GRscatterAdd(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F, last = plotScatter$data))
+#             print('plotScatter')
+#             plotScatter <<- plot1
+#             scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
+#             scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
+#             #print(plotScatter$data)
+#             plot2 = isolate(ggplotly(plot1))
+#           }
+#           
+#         })
+#       })
+#     }
+#   })
     
 #================= analyzeButton ================================
   observeEvent(input$analyzeButton,{
-    df_full <<- NULL
+    plotScatter <<- NULL
     all_inputs <- names(input)
     print(all_inputs)
     groupingColumns <<- input$groupingVars
@@ -256,8 +288,8 @@ shinyServer(function(input, output,session) {
     print(groupingColumns)
     print("groupingColumns")
     
-    tables <- GRfit(values$inData, groupingColumns, GRtable = 'both')
-    values$GR_table <- tables[[1]]
+    values$tables <- GRfit(values$inData, groupingColumns, GRtable = 'both')
+    values$GR_table <- values$tables[[1]]
     #values$GR_table <- calculate_GR(values$inData,groupingColumns)
     values$GR_table_show <- values$GR_table
     values$GR_table_show$GR <- as.numeric(prettyNum(values$GR_table_show$GR, digits = 3))
@@ -267,7 +299,7 @@ shinyServer(function(input, output,session) {
     #temp_parameter_table = logistic_fit_GR(values$GR_table,groupingColumns)
     #values$parameter_table <- temp_parameter_table[[1]]
     
-    values$parameter_table <- tables[[2]]
+    values$parameter_table <- values$tables[[2]]
     # log10(EC50) needed for passing
     #values$parameter_table$GEC50[values$parameter_table$GEC50 == 0] = NA
     values$parameter_table$GR50[is.infinite(values$parameter_table$GR50)] = NA
@@ -278,7 +310,7 @@ shinyServer(function(input, output,session) {
     
     test_ref <<- values$parameter_table
     #values$parameter_table_show <- temp_parameter_table[[2]]
-    parameters_show <- tables[[2]]
+    parameters_show <- values$tables[[2]]
     parameters_show$GR50 = as.numeric(prettyNum(parameters_show$GR50, digits = 3))
     parameters_show$GRmax = as.numeric(prettyNum(parameters_show$GRmax, digits = 3))
     parameters_show$GR_AOC = as.numeric(prettyNum(parameters_show$GR_AOC, digits = 3))
@@ -300,6 +332,8 @@ print(1)
       } else {
           values$showanalyses_multi<-0
       }
+    }
+  })
       
 print(2)      
       output$plot.ui <- renderUI({
@@ -328,7 +362,7 @@ print(4)
         do.call(tagList, code_output_list)
       })
 print(5)      
-      
+    observeEvent(input$analyzeButton, {
       observeEvent(groupingColumns, {
         updateSelectInput(
           session, 'pick_var',
@@ -347,15 +381,38 @@ print(5)
           choices = unique(values$inData[[input$pick_var]]),
           selected = NULL
         )
-        
-        
-        
       })
       
+    })
+    
+    observeEvent(input$analyzeButton, {
+      plot_number <<- 0
+    })
+
       observeEvent(input$plot_scatter, {
         output$plotlyScatter1 <- renderPlotly({
           try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
-          plot1 = isolate(drawScatter(input, values))
+          plot_number <<- plot_number + 1
+          print('number')
+          print(plot_number)
+          if(plot_number == 1) {
+            plot1 = isolate(GRscatter(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F))
+            plotScatter <<- plot1
+            scatter_vars_x <<- input$x_scatter
+            scatter_vars_y <<- input$y_scatter
+            #print(plotScatter$data)
+            plot2 = isolate(ggplotly(plot1))
+          } else {
+            #plot1 = isolate(drawScatter(input, values))
+            plot1 = isolate(GRscatterAdd(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F, last = plotScatter$data))
+            print('plotScatter')
+            plotScatter <<- plot1
+            scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
+            scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
+            #print(plotScatter$data)
+            plot2 = isolate(ggplotly(plot1))
+          }
+          
         })
       })
       
@@ -390,7 +447,7 @@ print(5)
           # plug in a filler data frame
           p = ggplot(data = mtcars, aes(x = mpg, y = wt)) + geom_abline(slope = 1, intercept = 0, size = .25) + scale_x_continuous(limits = c(all_min, all_max)) + scale_y_continuous(limits = c(all_min, all_max)) + coord_fixed() + xlab('') + ylab('') + ggtitle('') + geom_blank()
           
-          df_full <<- NULL
+          plotScatter <<- NULL
           print(3)
           try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
           ggplotly(p)
@@ -421,21 +478,22 @@ print(5)
           all_min = -all_max
           print(all_min)
           print(all_max)
-          p = ggplot(data = df_sub, aes(x = get(paste0(parameter_choice,'.x'), envir = as.environment(df_sub)), y = get(paste0(parameter_choice,'.y'), envir = as.environment(df_sub)), colour = cross.x, text = merge_text)) + geom_abline(slope = 1, intercept = 0, size = .25) + scale_x_continuous(limits = c(all_min, all_max)) + scale_y_continuous(limits = c(all_min, all_max)) + coord_fixed() + xlab('') + ylab('') + ggtitle('') + geom_blank()
-          df_full <<- NULL
+          p = p = ggplot(data = mtcars, aes(x = mpg, y = wt)) + geom_abline(slope = 1, intercept = 0, size = .25) + scale_x_continuous(limits = c(all_min, all_max)) + scale_y_continuous(limits = c(all_min, all_max)) + coord_fixed() + xlab('') + ylab('') + ggtitle('') + geom_blank()
+          plotScatter <<- NULL
           try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
           ggplotly(p)
           layout(p, hovermode = FALSE)
         })
       })
       
+      observeEvent(input$analyzeButton, {
       updateSelectizeInput(session, 'choiceVar', choices = input$groupingVars, server = TRUE, selected=input$groupingVars[1])
       if (length(input$groupingVars)==1) {
          updateSelectizeInput(session, 'xgroupingVars', choices = input$groupingVars, server = TRUE, selected=input$groupingVars[1])
       } else {
          updateSelectizeInput(session, 'xgroupingVars', choices = input$groupingVars, server = TRUE, selected=input$groupingVars[2])
       }
-      
+      })
       observeEvent(input$plot_gr50grid, {
         output$'dose-response-grid-main' <- renderLiDoseResponseGrid(
           input="",
@@ -453,9 +511,6 @@ print(5)
         print(input$choiceVar)
         print(input$plot_gr50grid)
       })
-      
-    }
-  })
 #================================================
   
 })
