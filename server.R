@@ -9,10 +9,11 @@ library(GRmetrics)
 source('functions/drawPopup.R')
 source('functions/drawDRC.R', local = T)
 source('functions/extractGridData.R')
-#source('functions/drawScatter.R', local = T)
+source('functions/drawScatter.R', local = T)
 #source('functions/calculate_GR.R')
 #source('functions/logistic_fit_GR.R')
 source('functions/parseLabel.R')
+source('functions/getScatter.R', local = T)
 
 shinyServer(function(input, output,session) {
   
@@ -392,27 +393,13 @@ print(5)
       observeEvent(input$plot_scatter, {
         output$plotlyScatter1 <- renderPlotly({
           try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
-          plot_number <<- plot_number + 1
-          print('number')
-          print(plot_number)
-          if(plot_number == 1) {
-            plot1 = isolate(GRscatter(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F))
-            plotScatter <<- plot1
-            scatter_vars_x <<- input$x_scatter
-            scatter_vars_y <<- input$y_scatter
-            #print(plotScatter$data)
-            plot2 = isolate(ggplotly(plot1))
-          } else {
-            #plot1 = isolate(drawScatter(input, values))
-            plot1 = isolate(GRscatterAdd(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F, last = plotScatter$data))
-            print('plotScatter')
-            plotScatter <<- plot1
-            scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
-            scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
-            #print(plotScatter$data)
-            plot2 = isolate(ggplotly(plot1))
-          }
-          
+          plot1 = isolate(GRscatterAdd(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F, last = plotScatter$data))
+          isolate({
+          plotScatter <<- plot1
+          scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
+          scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
+          plot1
+          })
         })
       })
       
