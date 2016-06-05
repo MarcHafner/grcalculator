@@ -14,6 +14,9 @@ source('functions/extractGridData.R')
 #source('functions/logistic_fit_GR.R')
 source('functions/parseLabel.R')
 
+scatter_vars_x = NULL
+scatter_vars_y = NULL
+
 shinyServer(function(input, output,session) {
   
   values <- reactiveValues(inData=NULL, GR_table = NULL, GR_table_show = NULL, parameter_table = NULL, parameter_table_show = NULL, tables = NULL, df_scatter = NULL, showanalyses=0, showdata=0, showanalyses_multi=0, data_dl = NULL)
@@ -256,21 +259,27 @@ shinyServer(function(input, output,session) {
           print('number')
           print(plot_number)
           if(plot_number == 1) {
-            plot1 = isolate(GRscatter(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F))
+            print(scatter_vars_x)
+            print(scatter_vars_y)
+            plot1 = isolate(GRscatter(values$tables, input$pick_parameter, input$pick_var, scatter_vars_x, scatter_vars_y, plotly = F))
+            isolate({
             plotScatter <<- plot1
-            scatter_vars_x <<- input$x_scatter
-            scatter_vars_y <<- input$y_scatter
+            scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
+            scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
+            })
             #print(plotScatter$data)
-            plot2 = isolate(ggplotly(plot1))
+            isolate(plot1)
           } else {
             #plot1 = isolate(drawScatter(input, values))
             plot1 = isolate(GRscatterAdd(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F, last = plotScatter$data))
             print('plotScatter')
-            plotScatter <<- plot1
-            scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
-            scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
-            #print(plotScatter$data)
-            plot2 = isolate(ggplotly(plot1))
+            isolate({
+              plotScatter <<- plot1
+              scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
+              scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
+              #print(plotScatter$data)
+              plot1
+            })
           }
           
         })
@@ -394,10 +403,13 @@ print(5)
           try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
           plot1 = isolate(GRscatterAdd(values$tables, input$pick_parameter, input$pick_var, input$x_scatter, input$y_scatter, plotly = F, last = plotScatter$data))
           isolate({
-          plotScatter <<- plot1
-          scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
-          scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
-          plot1
+            #plot_number <<- plot_number + 1
+            plotScatter <<- plot1
+            scatter_vars_x <<- c(scatter_vars_x, input$x_scatter)
+            scatter_vars_y <<- c(scatter_vars_y, input$y_scatter)
+            print(scatter_vars_x)
+            print(scatter_vars_y)
+            plot1
           })
         })
       })
