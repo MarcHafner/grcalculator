@@ -1,0 +1,6 @@
+GRbox                   Boxplots of a given GR metric
+GRdrawDRC               Dose-Response Curves
+GRfit                   Extract GR parameters from a dataset
+GRscatter               Scatterplot of a given GR metric
+inputCaseA              Simulated dose-response assay data (Case A)
+inputCaseC              Simulated dose-response assay data (Case C)
