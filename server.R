@@ -304,17 +304,17 @@ observeEvent(input$analyzeButton, {
     print("groupingColumns")
     
     ###### For use with Bioconductor package #####
-#     tables <- GRfit(values$inData, groupingColumns, force = input$force, cap = input$cap, case = values$case)
-#     values$parameter_table <- cbind(as.data.frame(colData(tables)), as.data.frame(t(assay(tables))))
-#     values$GR_table <- S4Vectors::metadata(tables)[[1]]
-#     parameters_show <- cbind(as.data.frame(colData(tables)), as.data.frame(t(assay(tables))))
+    tables <- GRfit(values$inData, groupingColumns, force = input$force, cap = input$cap, case = values$case)
+    values$parameter_table <- cbind(as.data.frame(colData(tables)), as.data.frame(t(assay(tables))))
+    values$GR_table <- S4Vectors::metadata(tables)[[1]]
+    parameters_show <- cbind(as.data.frame(colData(tables)), as.data.frame(t(assay(tables))))
     ##############################################
     
     ###### For use with old package #####
-    tables <- GRfit(values$inData, groupingColumns, GRtable = 'both', force = input$force, cap = input$cap, case = values$case)
-    values$GR_table <- tables[[1]]
-    values$parameter_table <- tables[[2]]
-    parameters_show <- tables[[2]]
+#     tables <- GRfit(values$inData, groupingColumns, GRtable = 'both', force = input$force, cap = input$cap, case = values$case)
+#     values$GR_table <- tables[[1]]
+#     values$parameter_table <- tables[[2]]
+#     parameters_show <- tables[[2]]
     #####################################
     
     #values$GR_table <- calculate_GR(values$inData,groupingColumns)

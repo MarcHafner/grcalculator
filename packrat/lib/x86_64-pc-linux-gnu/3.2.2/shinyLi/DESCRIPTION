@@ -5,10 +5,15 @@ Version: 0.03
 Date: 2016-01-01
 Author: Michal Kouril
 Maintainer: Michal Kouril <Michal.Kouril@cchmc.org>
-Description: Adds Scatterplot, Dose Response Grid, .. for LINCS data to Shiny.
+Description: Adds Scatterplot, Dose Response Grid, .. for LINCS data to
+    Shiny.
 Imports: shiny (>= 0.11), htmltools
 URL: https://github.uc.edu/lsgsb/shinyLi
 BugReports: https://github.uc.edu/lsgsb/shinyLi/issues
 License: GPL-3
 RoxygenNote: 5.0.1
 Built: R 3.2.2; ; 2016-09-01 01:33:35 UTC; unix
+InstallAgent: packrat 0.4.7.1
+InstallSource: source
+InstallSourcePath: /srv/shiny-server/shinyLi
+Hash: 179164352b4a8e4618a3b68670d4f8cd

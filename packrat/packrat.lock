@@ -45,6 +45,24 @@ Version: 0.2
 Hash: 36b032203797956fedad5a25055016a9
 Requires: htmltools, htmlwidgets, magrittr
 
+Package: GRmetrics
+Source: Bioconductor
+Version: 0.99.8
+Hash: be51641931c9352f09e53010f0a0c148
+Requires: S4Vectors, SummarizedExperiment, drc, ggplot2, plotly
+
+Package: GenomeInfoDb
+Source: Bioconductor
+Version: 1.6.3
+Hash: 812d1407803a8336e5582cf9bda6b251
+Requires: BiocGenerics, IRanges, S4Vectors
+
+Package: GenomicRanges
+Source: Bioconductor
+Version: 1.22.4
+Hash: fe954317487a55912c4c7bf8d3dfe3f5
+Requires: BiocGenerics, GenomeInfoDb, IRanges, S4Vectors, XVector
+
 Package: IRanges
 Source: Bioconductor
 Version: 2.4.8
@@ -94,11 +112,24 @@ Source: CRAN
 Version: 1.7
 Hash: 98aaf6c87c9a70c4982e437c02698e76
 
+Package: SummarizedExperiment
+Source: Bioconductor
+Version: 1.0.2
+Hash: ac34290bfbcaf7aa9db73b14135fb99b
+Requires: Biobase, BiocGenerics, GenomeInfoDb, GenomicRanges, IRanges,
+    S4Vectors
+
 Package: TH.data
 Source: CRAN
 Version: 1.0-7
 Hash: 0c57e23c3a07fc579222d0e7f8b63556
 Requires: survival
+
+Package: XVector
+Source: Bioconductor
+Version: 0.10.0
+Hash: fbd5fdfdbe08bc68df49cd1aa858e433
+Requires: BiocGenerics, IRanges, S4Vectors, zlibbioc
 
 Package: assertthat
 Source: CRAN
@@ -350,6 +381,13 @@ Version: 0.61
 Hash: 4644935bd93e62a0b82686b26af7efc2
 Requires: htmltools, shiny
 
+Package: shinyLi
+Source: source
+Version: 0.03
+Hash: 179164352b4a8e4618a3b68670d4f8cd
+Requires: htmltools, shiny
+SourcePath: /srv/shiny-server/shinyLi
+
 Package: shinyjs
 Source: CRAN
 Version: 0.7
@@ -399,6 +437,11 @@ Package: yaml
 Source: CRAN
 Version: 2.1.13
 Hash: 4854ccabebc225e8a7309fb4a74980de
+
+Package: zlibbioc
+Source: Bioconductor
+Version: 1.16.0
+Hash: a62f7415c8f5f7330ef25f3490b75b6b
 
 Package: zoo
 Source: CRAN
