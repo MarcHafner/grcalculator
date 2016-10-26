@@ -17,6 +17,11 @@ shinyUI(
     #displaying header
     includeHTML("www/html/nav.html"),
     titlePanel("GR Calculator"),
+    tags$script('Shiny.addCustomMessageHandler("triggerButton", function(x) {   
+                      var el = $("#" + x);
+                      el.trigger("click");
+                });
+                '),
     # side column
     column(2, class="leftColWidth",
            br(),
@@ -49,7 +54,9 @@ shinyUI(
              checkboxInput('euro_in', "Commas as decimal points", value = F),
              checkboxInput('cap', "Cap GR values below 1", value = F),
              checkboxInput('force', "Force sigmoidal fit", value = F)
-                )
+                ),
+             hr(),
+             fileInput('uploadConfig', 'Import saved project', multiple = FALSE, accept = NULL, width = NULL)
            ),
            actionLink('importData', 'Open data file'),
            hr(),
@@ -124,7 +131,9 @@ shinyUI(
                                                 radioButtons('drcImageType', label = '', choices = c('.pdf', '.tiff')),
                                                 hr(),
                                                 actionButton("generateURL2", "Generate URL to Share"),
-                                                textInput("prepopulatedURL2", label = "", value = "")
+                                                textInput("prepopulatedURL2", label = "", value = ""),
+                                                hr(),
+                                                downloadLink('downloadJSON', 'Save project')
                                               )
                                             )
                                          )

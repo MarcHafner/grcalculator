@@ -7,6 +7,8 @@ library(drc)
 library(GRmetrics)
 library(S4Vectors)
 library(stringr)
+library(jsonlite)
+
 
 source('functions/drawPopup.R')
 source('functions/drawDRC.R', local = T)
@@ -17,8 +19,198 @@ source('functions/parseLabel.R')
 
 shinyServer(function(input, output,session) {
 
-  values <- reactiveValues(inData=NULL, case = "A", GR_table = NULL, GR_table_show = NULL, parameter_table = NULL, parameter_table_show = NULL, df_scatter = NULL, showanalyses=0, showdata=0, showanalyses_multi=0, data_dl = NULL, wilcox = NULL)
+  values <- reactiveValues(autoLoad=NULL, inData=NULL, case = "A", GR_table = NULL, 
+                           GR_table_show = NULL, parameter_table = NULL, parameter_table_show = NULL, 
+                           df_scatter = NULL, showanalyses=0, showdata=0, showanalyses_multi=0, 
+                           data_dl = NULL, wilcox = NULL)
   isolate(values$inData)
+
+  generateJSON <- function() {
+
+    json <- toJSON(c(list(autoLoad = values$autoLoad), 
+                     list(inData = values$inData),
+                     list(case = values$case),
+                     list(GR_table = values$GR_table),
+                     list(GR_table_show = values$GR_table_show),
+                     list(parameter_table = values$parameter_table),
+                     list(parameter_table_show = values$parameter_table_show),
+                     list(df_scatter = values$df_scatter),
+                     list(showanalyses = values$showanalyses),
+                     list(showdata = values$showdata),
+                     list(showanalyses_multi = values$showanalyses_multi),
+                     list(data_dl = values$data_dl),
+                     list(wilcox = values$wilcox),
+                     list(box_scatter = input$box_scatter),
+                     list(curve_type_grid = input$curve_type_grid),
+                     list(plot_options = input$plot_options),
+                     list(groupingVars = input$groupingVars)
+    ))
+  }
+  
+  output$downloadJSON <- downloadHandler(
+    filename = function() {
+      paste('status2.json', sep='')
+    },
+    content = function(file) {
+      
+      json <- generateJSON()
+      write(json, file)
+    }
+  )
+  
+  showAnalyzedData <- function() {
+    
+    output$plot.ui <- renderUI({
+      plotlyOutput("drc2", height = input$height)
+    })
+    
+    output$plot.ui2 <- renderUI({
+      if(input$box_scatter == "Box plot") {
+        plotlyOutput('boxplot', height = input$scatter_height)
+      } else {
+        plotlyOutput("plotlyScatter1", height = input$scatter_height)
+      }
+    })
+    
+    observeEvent(input$scatter_height, {
+      output$plot.ui2 <- renderUI({
+        if(input$box_scatter == "Box plot") {
+          plotlyOutput('boxplot', height = input$scatter_height)
+        } else {
+          plotlyOutput("plotlyScatter1", height = input$scatter_height)
+        }
+      })
+    })
+    
+    print(3)      
+    output$drc2<-drawDRC(input, values)
+    print(4)      
+    output$ui <- renderUI({
+      n <- length(input$groupingVars)
+      if (n>0) {
+        code_output_list <- lapply(1:n, function(i) {
+          # name the input choice based on the grouping variable names, prefix with "param_" to aviod conflict
+          codeOutput <- paste("param_", input$groupingVars[i], sep="")
+          verbatimTextOutput(codeOutput)
+          drc_choices = sort(unique(subset(values$GR_table,select=c(input$groupingVars[i]))[,1])[[1]])
+          selectizeInput(
+            codeOutput, input$groupingVars[i], choices = drc_choices, multiple = TRUE, selected = drc_choices[1]
+          )
+        })
+      } else code_output_list <- list()
+      # Convert the list to a tagList - this is necessary for the list of items
+      # to display properly.
+      do.call(tagList, code_output_list)
+    })
+    print(5)
+    
+    observeEvent(groupingColumns, {
+      updateSelectInput(
+        session, 'pick_var',
+        choices = input$groupingVars
+      )
+    })
+    
+    observeEvent(input$pick_var, {
+      scatter_choices = unique(values$GR_table[[input$pick_var]])
+      updateSelectInput(
+        session, 'x_scatter',
+        choices = scatter_choices,
+        selected = NULL
+      )
+      updateSelectizeInput(
+        session, 'y_scatter',
+        choices = scatter_choices,
+        selected = NULL
+      )
+    })
+    
+    output$boxplot <- renderPlotly({
+      #try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
+      box = drawBox(input, values)
+      if(!is.null(box)) {
+        box
+      } else {stop()}
+    })
+    observeEvent(input$plot_scatter, {
+      output$plotlyScatter1 <- renderPlotly({
+        #try(png(paste("/mnt/raid/tmp/junk1",gsub(" ","_",date()),as.character(as.integer(1000000*runif(1))),".png",sep="_")))
+        plot1 = isolate(drawScatter(input, values))
+      })
+    })
+    updateTabsetPanel(session,"tabs",selected="tab-drc")
+  }
+  
+  loadData <- function(session, j) {
+        values$autoLoad = j$autoLoad
+        values$inData = j$inData
+        values$case = j$case
+        values$GR_table = j$GR_table
+        values$GR_table_show = j$GR_table_show
+        values$parameter_table = j$parameter_table
+        values$parameter_table_show = j$parameter_table_show
+        values$df_scatter = j$df_scatter
+        values$showanalyses = j$showanalyses
+        values$showdata = j$showdata
+        values$showanalyses_multi = j$showanalyses_multi
+        values$data_dl = j$data_dl
+        values$wilcox = j$wilcox
+
+        updateSelectInput(session, "plot_options", choices = NULL, #list("Data Points" = 1, "Fitted Curves" = 2, "Both" = 3)
+                            selected = c(j$plot_options))
+        updateSelectInput(session, "curve_type_grid", choices = NULL, # c("GR","IC"), 
+                          selected = c(j$curve_type_grid))
+        updateSelectInput(session, "box_scatter", choices = NULL, # c("Box plot", "Scatter plot"), 
+                          selected = c(j$box_scatter))
+        
+        showAnalyzedData()
+        
+  }
+  
+  loadConfig <- function (jsoninput) {
+    
+    j <- fromJSON(jsoninput)
+    
+    loadData(session, j)
+  }
+  
+  observeEvent(input$uploadConfig, {
+    inFile <- input$uploadConfig
+    
+    if (is.null(inFile))
+      return(NULL)
+    
+    json_data <- readLines(inFile$datapath)
+    
+    # cat('file ',inFile$datapath,' received\n')
+    loadConfig(json_data)
+    unlink(inFile$datapath, recursive = FALSE)
+  })
+  
+  observeEvent(input$generateURL2,
+               {
+                 
+               })
+  
+  observe({
+    query <- parseQueryString(session$clientData$url_search)
+    # cat(query)
+    if (!is.null(query[['url']])) {
+      values$autoLoad=1
+      json_data <- readLines("status2.json")
+      
+      # cat('file ',inFile$datapath,' received\n')
+      loadConfig(json_data)
+      
+      # session$sendCustomMessage(type = "triggerButton", "loadExample")
+      # $("#left").trigger("click");
+      # query_url <- query[['url']]
+      # updateTextInput(session, "url", value = query_url)
+      # fetchURLData(query_url)
+      # trigger event input$fetchURLData
+    }
+  })
+
 
   observeEvent(input$loadExample, {
     values$data_dl = 'example'
@@ -34,7 +226,16 @@ shinyServer(function(input, output,session) {
       x<-values$inData
       data.frame(x)
     }, rownames= FALSE))
+    #if (values$autoLoad==1) {
+      # session$sendCustomMessage(type = "triggerButton", "analyzeButton")
+    #}
   })
+  
+  #observeEvent(output$input_table, {
+  #  if (values$autoLoad==1) {
+  #    session$sendCustomMessage(type = "triggerButton", "analyzeButton")
+  #  }
+  #})
   
   observeEvent(input$loadExampleC, {
     values$data_dl = 'example'
@@ -93,6 +294,7 @@ shinyServer(function(input, output,session) {
   })
   observe({
     if(values$showdata) updateTabsetPanel(session,"tabs",selected="tab-data")
+    if(values$showanalyses) updateTabsetPanel(session,"tabs",selected="tab-drc")
   })
   getData <- reactive({
     input$loadExample
@@ -575,7 +777,9 @@ print(5)
       }
       )
   })
+
   
+    
       box_scatter_choices = c('GR50', 'GRmax', 'GRinf', 'h_GR', 'GR_AOC', 'IC50','Emax', 'Einf', 'h', 'AUC')
 
       output$scatter <- renderUI({
