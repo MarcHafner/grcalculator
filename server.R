@@ -17,14 +17,45 @@ source('functions/drawScatter.R', local = T)
 source('functions/drawBox.R')
 source('functions/parseLabel.R')
 
+init_DRC = function(input, output, session, values) {
+  output$downloadDRC = downloadHandler(
+    filename = function() {
+      if(input$drcImageType == '.pdf') {
+        if(!is.null(input$uploadData)) {
+          return(paste(sub("^(.*)[.].*", "\\1", input$uploadData), "_GR_DRC.pdf", sep=''))
+        } else {
+          return("example_GR_DRC.pdf")
+        }
+      } else {
+        if(!is.null(input$uploadData)) {
+          return(paste(sub("^(.*)[.].*", "\\1", input$uploadData), "_GR_DRC.tiff", sep=''))
+        } else {
+          return("example_GR_DRC.tiff")
+        }
+      }
+    },
+    content = function(filename) {
+      if(input$drcImageType == '.pdf') {
+        ggsave(filename = filename, plot = plotDRC, device = "pdf")
+      } else {
+        ggsave(filename = filename, plot = plotDRC, device = "tiff", units = "in", width = 7, height = 7, dpi = 300)
+      }
+    }
+  )
+  
+}
+
+
 shinyServer(function(input, output,session) {
 
   values <- reactiveValues(autoLoad=NULL, inData=NULL, case = "A", GR_table = NULL, 
                            GR_table_show = NULL, parameter_table = NULL, parameter_table_show = NULL, 
                            df_scatter = NULL, showanalyses=0, showdata=0, showanalyses_multi=0, 
-                           data_dl = NULL, wilcox = NULL)
+                           data_dl = NULL, wilcox = NULL, groupingVars = NULL)
   isolate(values$inData)
 
+  init_DRC(input, output, session, values)
+  
   generateJSON <- function() {
 
     json <- toJSON(c(list(autoLoad = values$autoLoad), 
@@ -58,7 +89,23 @@ shinyServer(function(input, output,session) {
     }
   )
   
-  showAnalyzedData <- function() {
+  showAnalyzedData <- function(session) {
+    
+    updateSelectizeInput(session, 'choiceVar', choices =  values$groupingVars, server = TRUE, selected=values$groupingVars[1])
+    if (length(input$groupingVars)==1) {
+      updateSelectizeInput(session, 'xgroupingVars', choices = values$groupingVars, server = TRUE, selected=values$groupingVars[1])
+    } else {
+      updateSelectizeInput(session, 'xgroupingVars', choices = values$groupingVars, server = TRUE, selected=values$groupingVars[2])
+    }
+    
+    df_full <<- NULL
+    all_inputs <- names(input)
+    print(all_inputs)
+    groupingColumns <<- input$groupingVars
+    print("groupingColumns")
+    print(groupingColumns)
+    print("groupingColumns")
+    
     
     output$plot.ui <- renderUI({
       plotlyOutput("drc2", height = input$height)
@@ -139,6 +186,42 @@ shinyServer(function(input, output,session) {
       })
     })
     updateTabsetPanel(session,"tabs",selected="tab-drc")
+    
+    output$'dose-response-grid-main' <- renderLiDoseResponseGrid(
+      input="",
+      xmin = min(log10(values$GR_table$concentration), na.rm = T),
+      xmax = max(log10(values$GR_table$concentration), na.rm = T),
+      factors=c(paste(isolate(input$xgroupingVars),collapse = ' '), isolate(input$choiceVar)),
+      toggle=0,
+      {
+        #input$plot_gr50grid
+        isolate(extractGridData(input, output, values$parameter_table, isolate(input$choiceVar), isolate(input$xgroupingVars)))
+      }
+    )
+    
+    output$scatter <- renderUI({
+      if(input$box_scatter == "Scatter plot") {
+        fluidRow(
+          selectInput('pick_parameter', 'Select parameter', choices = box_scatter_choices),
+          selectInput('pick_var', 'Select variable', choices = input$groupingVars),
+          selectInput('x_scatter', 'Select x-axis value', choices = unique(values$inData[[input$pick_box_x]])),
+          selectizeInput('y_scatter', 'Select y-axis value', choices = unique(values$inData[[input$pick_box_x]])),
+          bsButton('plot_scatter', 'Add', size = 'small'),
+          bsButton('clear', 'Clear', size = 'small')
+        )
+      } else {
+        fluidRow(
+          selectInput('pick_box_y', 'Select parameter', choices = box_scatter_choices),
+          selectInput('pick_box_x', 'Select grouping variable', choices = input$groupingVars),
+          selectInput('pick_box_point_color', 'Select additional point coloring', choices = input$groupingVars),
+          selectizeInput('pick_box_factors', 'Select factors of grouping variable', choices = c(), multiple = T),
+          selectizeInput('factorA', 'Choose factors with which to perform a one-sided Wilcoxon rank-sum test', choices = c(), multiple = T),
+          selectizeInput('factorB', '', choices = c(), multiple = T),
+          textOutput("wilcox")
+        )
+      }
+    })
+    
   }
   
   loadData <- function(session, j) {
@@ -156,6 +239,8 @@ shinyServer(function(input, output,session) {
         values$data_dl = j$data_dl
         values$wilcox = j$wilcox
 
+        # input$groupingVars
+        
         updateSelectInput(session, "plot_options", choices = NULL, #list("Data Points" = 1, "Fitted Curves" = 2, "Both" = 3)
                             selected = c(j$plot_options))
         updateSelectInput(session, "curve_type_grid", choices = NULL, # c("GR","IC"), 
@@ -163,7 +248,20 @@ shinyServer(function(input, output,session) {
         updateSelectInput(session, "box_scatter", choices = NULL, # c("Box plot", "Scatter plot"), 
                           selected = c(j$box_scatter))
         
-        showAnalyzedData()
+        delete_cols = which(colnames(values$inData) %in% c('concentration', 'cell_count', 'cell_count__ctrl', 'cell_count__time0'))
+        
+        values$groupingVars = colnames(values$inData)[-delete_cols]
+        
+        cat(values$groupingVars)
+        
+        updateSelectizeInput(
+          session, 'groupingVars',
+          choices = values$groupingVars,
+          selected = values$groupingVars,
+          options = c()
+        )
+        
+        showAnalyzedData(session)
         
   }
   
@@ -475,30 +573,30 @@ shinyServer(function(input, output,session) {
   )
 
 #========== Download buttons for DRC plots =======
-  output$downloadDRC = downloadHandler(
-      filename = function() {
-        if(input$drcImageType == '.pdf') {
-          if(!is.null(input$uploadData)) {
-            return(paste(sub("^(.*)[.].*", "\\1", input$uploadData), "_GR_DRC.pdf", sep=''))
-          } else {
-            return("example_GR_DRC.pdf")
-          }
-        } else {
-          if(!is.null(input$uploadData)) {
-            return(paste(sub("^(.*)[.].*", "\\1", input$uploadData), "_GR_DRC.tiff", sep=''))
-          } else {
-            return("example_GR_DRC.tiff")
-          }
-        }
-      },
-      content = function(filename) {
-        if(input$drcImageType == '.pdf') {
-          ggsave(filename = filename, plot = plotDRC, device = "pdf")
-        } else {
-          ggsave(filename = filename, plot = plotDRC, device = "tiff", units = "in", width = 7, height = 7, dpi = 300)
-        }
-      }
-  )
+#  output$downloadDRC = downloadHandler(
+#      filename = function() {
+      #   if(input$drcImageType == '.pdf') {
+      #     if(!is.null(input$uploadData)) {
+      #       return(paste(sub("^(.*)[.].*", "\\1", input$uploadData), "_GR_DRC.pdf", sep=''))
+      #     } else {
+      #       return("example_GR_DRC.pdf")
+      #     }
+      #   } else {
+      #     if(!is.null(input$uploadData)) {
+      #       return(paste(sub("^(.*)[.].*", "\\1", input$uploadData), "_GR_DRC.tiff", sep=''))
+      #     } else {
+      #       return("example_GR_DRC.tiff")
+      #     }
+      #   }
+      # },
+#      content = function(filename) {
+      #   if(input$drcImageType == '.pdf') {
+      #     ggsave(filename = filename, plot = plotDRC, device = "pdf")
+      #   } else {
+      #     ggsave(filename = filename, plot = plotDRC, device = "tiff", units = "in", width = 7, height = 7, dpi = 300)
+      #   }
+      # }
+#  )
 
  
 #========== Download button for scatterplot images =======
